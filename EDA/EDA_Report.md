@@ -15,7 +15,7 @@
 
 ## 2. Landslide Class Distribution
 
-![Landslide Class Distribution](../../media/01_class_distribution.png)
+![Landslide Class Distribution](../media/01_class_distribution.png)
 
 ### Findings
 
@@ -35,7 +35,7 @@ However, accuracy alone should not be used as the primary evaluation metric. Pre
 
 ## 3. Feature Distributions
 
-![Feature Distributions](../../media/02_feature_distributions.png)
+![Feature Distributions](../media/02_feature_distributions.png)
 
 ### Findings
 
@@ -54,7 +54,7 @@ Extreme values were not removed automatically because an extreme environmental o
 
 ## 4. Rainfall, Slope and NDVI vs Landslide
 
-![Rainfall, Slope and NDVI](../../media/03_rainfall_slope_ndvi_boxplots.png)
+![Rainfall, Slope and NDVI](../media/03_rainfall_slope_ndvi_boxplots.png)
 
 ### Findings
 
@@ -74,7 +74,7 @@ These observations are exploratory and should not be interpreted as model featur
 
 ## 5. Soil Composition vs Landslide
 
-![Soil Composition](../../media/04_soil_boxplots.png)
+![Soil Composition](../media/04_soil_boxplots.png)
 
 ### Findings
 
@@ -98,7 +98,7 @@ The features are retained for further modelling because they may still contribut
 
 ## 6. Feature Correlation Heatmap
 
-![Correlation Heatmap](../../media/05_correlation_heatmap.png)
+![Correlation Heatmap](../media/05_correlation_heatmap.png)
 
 ### Findings
 
@@ -161,7 +161,7 @@ This should be considered when interpreting model feature importance and when de
 
 ## 8. Top Features — Violin Plot
 
-![Top Features Violin Plot](../../media/06_top_features_violinplot.png)
+![Top Features Violin Plot](../media/06_top_features_violinplot.png)
 
 ### Findings
 
