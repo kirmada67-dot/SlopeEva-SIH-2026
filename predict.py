@@ -14,3 +14,4 @@ def predict_landslide(input_data):
 def classify_landsli8de(prob, threshold):
 	
 
+
