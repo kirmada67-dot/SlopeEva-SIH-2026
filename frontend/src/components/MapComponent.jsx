@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { PREDEFINED_LOCATIONS } from '../constants/predefinedLocations';
 
 // Fix Leaflet's default icon paths if needed
 delete L.Icon.Default.prototype._getIconUrl;
@@ -12,19 +13,43 @@ L.Icon.Default.mergeOptions({
 
 const KM_PER_DEG_LAT = 111.32;
 
+// Custom pin icon for predefined demo locations
+const createPredefinedMarkerIcon = (name) => {
+  return L.divIcon({
+    className: 'custom-ner-marker-container',
+    html: `
+      <div class="ner-marker-pin">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+          <circle cx="12" cy="10" r="3"></circle>
+        </svg>
+      </div>
+      <div class="ner-marker-label">${name}</div>
+    `,
+    iconSize: [120, 36],
+    iconAnchor: [60, 32],
+    popupAnchor: [0, -32],
+  });
+};
+
 export default function MapComponent({
   isGridMode,
+  gridSize,            // 1, 2, or 3 — number of rows/cols
   onGridCreated,
   gridRegions,
   selectedRegionId,
   onSelectRegion,
+  riskyRoadsGeoJSON,   // GeoJSON FeatureCollection | null
 }) {
   const mapContainerRef = useRef(null);
   const mapInstanceRef = useRef(null);
+  const predefinedMarkersLayerGroupRef = useRef(null);
   const gridLayerGroupRef = useRef(null);
+  const roadsLayerGroupRef = useRef(null);
   const isGridModeRef = useRef(isGridMode);
+  const gridSizeRef = useRef(gridSize);
 
-  // Keep ref synchronized with current isGridMode state
+  // Keep refs synchronized with current prop values
   useEffect(() => {
     isGridModeRef.current = isGridMode;
     if (mapContainerRef.current) {
@@ -36,15 +61,19 @@ export default function MapComponent({
     }
   }, [isGridMode]);
 
+  useEffect(() => {
+    gridSizeRef.current = gridSize;
+  }, [gridSize]);
+
   // Initialize Leaflet Map once
   useEffect(() => {
     if (!mapContainerRef.current || mapInstanceRef.current) return;
 
-    // Default center at a high-relief Himalayan slope region (Shimla / Uttarakhand region)
-    const initialCenter = [31.1048, 77.1734];
+    // Default center at Mawsynram, Meghalaya (North-Eastern Region)
+    const initialCenter = [25.2975, 91.5826];
     const map = L.map(mapContainerRef.current, {
       center: initialCenter,
-      zoom: 13,
+      zoom: 10,
       zoomControl: true,
     });
 
@@ -53,9 +82,82 @@ export default function MapComponent({
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     }).addTo(map);
 
-    const layerGroup = L.layerGroup().addTo(map);
-    gridLayerGroupRef.current = layerGroup;
+    // Layer groups hierarchy:
+    // 1. Roads layer (lowest overlay)
+    // 2. Grid layer (custom 3x3 regions)
+    // 3. Predefined location markers (always visible top reference)
+    const roadsLayerGroup = L.layerGroup().addTo(map);
+    const gridLayerGroup = L.layerGroup().addTo(map);
+    const predefinedMarkersLayerGroup = L.layerGroup().addTo(map);
+
+    roadsLayerGroupRef.current = roadsLayerGroup;
+    gridLayerGroupRef.current = gridLayerGroup;
+    predefinedMarkersLayerGroupRef.current = predefinedMarkersLayerGroup;
     mapInstanceRef.current = map;
+
+    // Render predefined NER demo markers
+    PREDEFINED_LOCATIONS.forEach((loc) => {
+      const marker = L.marker(loc.coordinates, {
+        icon: createPredefinedMarkerIcon(loc.name),
+        title: `${loc.name}, ${loc.state}`,
+      });
+
+      const popupContent = `
+        <div class="predefined-popup-card">
+          <div class="popup-title-row">
+            <h4 class="popup-place-name">${loc.name}</h4>
+            <span class="popup-state-name">${loc.state}</span>
+          </div>
+          <div class="popup-badge-tag">Demo Risk Profile</div>
+          
+          <div class="popup-risk-strip risk-${loc.demoProfile.risk.toLowerCase()}">
+            <div class="popup-risk-item">
+              <span class="label">Risk</span>
+              <span class="value">${loc.demoProfile.risk}</span>
+            </div>
+            <div class="popup-risk-item">
+              <span class="label">Probability</span>
+              <span class="value">${loc.demoProfile.probability}</span>
+            </div>
+          </div>
+
+          <div class="popup-metrics-table">
+            <div class="metric-row">
+              <span class="metric-label">24h Rainfall:</span>
+              <span class="metric-val">${loc.demoProfile.rainfall24h}</span>
+            </div>
+            <div class="metric-row">
+              <span class="metric-label">Slope:</span>
+              <span class="metric-val">${loc.demoProfile.slope}</span>
+            </div>
+            <div class="metric-row">
+              <span class="metric-label">3-Day Rainfall:</span>
+              <span class="metric-val">${loc.demoProfile.rainfall3Day}</span>
+            </div>
+            <div class="metric-row">
+              <span class="metric-label">Distance to Water:</span>
+              <span class="metric-val">${loc.demoProfile.distanceToWater}</span>
+            </div>
+            <div class="metric-row">
+              <span class="metric-label">7-Day Rainfall:</span>
+              <span class="metric-val">${loc.demoProfile.rainfall7Day}</span>
+            </div>
+          </div>
+        </div>
+      `;
+
+      marker.bindPopup(popupContent, {
+        className: 'custom-ner-popup',
+        maxWidth: 280,
+      });
+
+      // Prevent marker clicks from triggering grid creation on the map
+      marker.on('click', (e) => {
+        L.DomEvent.stopPropagation(e);
+      });
+
+      marker.addTo(predefinedMarkersLayerGroup);
+    });
 
     // Handle map clicks
     map.on('click', (e) => {
@@ -68,10 +170,19 @@ export default function MapComponent({
       const deltaLat = 1.0 / KM_PER_DEG_LAT;
       const deltaLng = 1.0 / (KM_PER_DEG_LAT * Math.cos((lat * Math.PI) / 180));
 
+      const size = gridSizeRef.current; // 1, 2, or 3
       const regions = [];
       let regionCount = 1;
-      const rowOffsets = [1, 0, -1]; // North to South (Row 1, Row 2, Row 3)
-      const colOffsets = [-1, 0, 1]; // West to East (Col 1, Col 2, Col 3)
+
+      // Build offset arrays so grid is centered around clicked point.
+      // For size N, offsets go from -(N-1)/2 to +(N-1)/2 in steps of 1.
+      // Row offsets: positive = North (higher lat), rendered top-to-bottom.
+      // Col offsets: positive = East (higher lng), rendered left-to-right.
+      const half = (size - 1) / 2;
+      const rowOffsets = [];
+      for (let r = size - 1; r >= 0; r--) rowOffsets.push(r - half); // North→South
+      const colOffsets = [];
+      for (let c = 0; c < size; c++) colOffsets.push(c - half);      // West→East
 
       for (const r of rowOffsets) {
         for (const c of colOffsets) {
@@ -93,6 +204,11 @@ export default function MapComponent({
             index: regionCount,
             polygonCoords,
             center: [lat + r * deltaLat, lng + c * deltaLng],
+            // Store bbox for the roads endpoint
+            south,
+            north,
+            west,
+            east,
           });
 
           regionCount++;
@@ -128,7 +244,7 @@ export default function MapComponent({
         fillOpacity: isSelected ? 0.45 : 0.2,
       });
 
-      // Permanent short label (R1–R9) displaying on the map
+      // Permanent short label (R1–R9) on the map
       polygon.bindTooltip(region.shortLabel, {
         permanent: true,
         direction: 'center',
@@ -143,6 +259,33 @@ export default function MapComponent({
       polygon.addTo(layerGroup);
     });
   }, [gridRegions, selectedRegionId, onSelectRegion]);
+
+  // Render risky roads overlay whenever riskyRoadsGeoJSON changes
+  useEffect(() => {
+    const roadsLayerGroup = roadsLayerGroupRef.current;
+    if (!roadsLayerGroup) return;
+
+    roadsLayerGroup.clearLayers();
+
+    if (!riskyRoadsGeoJSON || riskyRoadsGeoJSON.features?.length === 0) return;
+
+    L.geoJSON(riskyRoadsGeoJSON, {
+      style: () => ({
+        color: '#ef4444',
+        weight: 5,
+        opacity: 0.9,
+        lineCap: 'round',
+        lineJoin: 'round',
+      }),
+      onEachFeature: (feature, layer) => {
+        const { highway, name } = feature.properties || {};
+        const label = name
+          ? `⚠️ ${name} (${highway})`
+          : `⚠️ ${highway || 'Road'} — High/Critical Risk Zone`;
+        layer.bindPopup(label);
+      },
+    }).addTo(roadsLayerGroup);
+  }, [riskyRoadsGeoJSON]);
 
   return <div ref={mapContainerRef} className="map-view-container" id="map" />;
 }
