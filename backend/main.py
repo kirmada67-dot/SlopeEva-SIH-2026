@@ -221,6 +221,7 @@ def get_risky_roads(payload: RoadsRequest):
                 "osm_id": element["id"],
                 "highway": tags.get("highway", "unknown"),
                 "name": tags.get("name", ""),
+                "ref": tags.get("ref", ""),
             },
         })
 

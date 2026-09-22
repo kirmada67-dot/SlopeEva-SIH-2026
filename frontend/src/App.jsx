@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import MapComponent from './components/MapComponent.jsx';
 import RegionInputPanel from './components/RegionInputPanel.jsx';
 import { DEFAULT_FEATURE_MEDIANS } from './constants/featureDefaults';
@@ -11,6 +11,64 @@ const GRID_SIZE_OPTIONS = [
   { value: 2, label: '2 × 2' },
   { value: 3, label: '3 × 3' },
 ];
+
+// Stable palette for road identity coloring — ordered for visual variety
+const ROAD_PALETTE = [
+  '#3b82f6', // blue
+  '#8b5cf6', // purple
+  '#ec4899', // pink
+  '#14b8a6', // teal
+  '#f59e0b', // amber
+  '#6366f1', // indigo
+  '#84cc16', // lime
+  '#06b6d4', // cyan
+  '#f43f5e', // rose
+  '#a855f7', // violet
+];
+
+export const UNREFERENCED_COLOR_KEY = 'unreferenced';
+export const UNREFERENCED_FALLBACK_COLOR = '#94a3b8'; // Slate gray
+
+/**
+ * Returns a unique color/group identity key with prefix to avoid collisions:
+ * 1. `ref:<ref>` when ref is non-empty
+ * 2. `name:<name>` when name is non-empty (and no ref)
+ * 3. `unreferenced` when both ref and name are missing
+ */
+export function getRoadColorKey(properties) {
+  const props = properties || {};
+  const trimmedRef = props.ref ? String(props.ref).trim() : '';
+  const trimmedName = props.name ? String(props.name).trim() : '';
+
+  if (trimmedRef) {
+    return `ref:${trimmedRef}`;
+  }
+  if (trimmedName) {
+    return `name:${trimmedName}`;
+  }
+  return UNREFERENCED_COLOR_KEY;
+}
+
+/**
+ * Build a deterministic roadColorMap from GeoJSON features.
+ * - Distinct color from ROAD_PALETTE for each `ref:<ref>`
+ * - Distinct color from ROAD_PALETTE for each `name:<name>` (no ref)
+ * - Single shared UNREFERENCED_FALLBACK_COLOR for `unreferenced`
+ */
+function buildRoadColorMap(features) {
+  const map = {
+    [UNREFERENCED_COLOR_KEY]: UNREFERENCED_FALLBACK_COLOR,
+  };
+  let idx = 0;
+  for (const f of (features || [])) {
+    const key = getRoadColorKey(f.properties);
+    if (key !== UNREFERENCED_COLOR_KEY && !(key in map)) {
+      map[key] = ROAD_PALETTE[idx % ROAD_PALETTE.length];
+      idx++;
+    }
+  }
+  return map;
+}
 
 function App() {
   const [isGridMode, setIsGridMode] = useState(false);
@@ -34,7 +92,17 @@ function App() {
   const [roadsError, setRoadsError] = useState(null);
   const [isFetchingRoads, setIsFetchingRoads] = useState(false);
 
+  // Deterministic road identity → color map derived from current road GeoJSON.
+  // Single source of truth shared between MapComponent and the route panel.
+  const refColorMap = useMemo(
+    () => buildRoadColorMap(riskyRoadsGeoJSON?.features),
+    [riskyRoadsGeoJSON]
+  );
+
+  const hasGrid = gridRegions.length > 0;
+
   const handleToggleGridMode = () => {
+    if (hasGrid) return;
     setIsGridMode((prev) => !prev);
   };
 
@@ -174,8 +242,6 @@ function App() {
     setRoadsError(null);
   };
 
-  const hasGrid = gridRegions.length > 0;
-
   return (
     <div className="app-container">
       <header className="app-header">
@@ -218,6 +284,8 @@ function App() {
             className={`control-btn ${isGridMode ? 'active' : ''}`}
             type="button"
             onClick={handleToggleGridMode}
+            disabled={hasGrid}
+            title={hasGrid ? 'Remove the current grid before creating a new one' : undefined}
             id="create-grid-btn"
           >
             {isGridMode ? 'Cancel Grid Mode' : 'Create Grid'}
@@ -262,6 +330,8 @@ function App() {
             selectedRegionId={selectedRegionId}
             onSelectRegion={handleSelectRegion}
             riskyRoadsGeoJSON={riskyRoadsGeoJSON}
+            regionPredictions={regionPredictions}
+            refColorMap={refColorMap}
           />
         </main>
 
@@ -290,25 +360,76 @@ function App() {
 
       {/* Risk-Affected Routes List — shown after road evaluation completes */}
       {!isFetchingRoads && !roadsError && riskyRoadsGeoJSON && (() => {
-        // Derive a deduplicated list of road names from the GeoJSON features
-        const seen = new Set();
-        const routeNames = [];
+        // 1. Group referenced roads (ref:XXX) and named unreferenced roads (name:YYY)
+        // 2. Consolidate nameless unreferenced roads into single 'unreferenced' entry
+        const groupMap = new Map();
+        let hasNamelessUnrefRoads = false;
+
         (riskyRoadsGeoJSON.features || []).forEach((feature) => {
-          const { name, ref } = feature.properties || {};
-          const label = name || ref || 'Unnamed road segment';
-          if (!seen.has(label)) {
-            seen.add(label);
-            routeNames.push(label);
+          const props = feature.properties || {};
+          const trimmedRef = props.ref ? String(props.ref).trim() : '';
+          const trimmedName = props.name ? String(props.name).trim() : '';
+          const key = getRoadColorKey(props);
+
+          if (key === UNREFERENCED_COLOR_KEY) {
+            hasNamelessUnrefRoads = true;
+          } else if (trimmedRef) {
+            // 1. ref:XXX entry
+            if (!groupMap.has(key)) {
+              groupMap.set(key, {
+                colorKey: key,
+                name: trimmedName,
+                ref: trimmedRef,
+                color: refColorMap[key] || ROAD_PALETTE[0],
+              });
+            } else {
+              const entry = groupMap.get(key);
+              if (!entry.name && trimmedName) {
+                entry.name = trimmedName;
+              }
+            }
+          } else {
+            // 2. name:YYY entry (no ref)
+            if (!groupMap.has(key)) {
+              groupMap.set(key, {
+                colorKey: key,
+                name: trimmedName,
+                ref: '',
+                color: refColorMap[key] || ROAD_PALETTE[0],
+              });
+            }
           }
         });
+
+        const routeEntries = Array.from(groupMap.values()).map((entry) => ({
+          colorKey: entry.colorKey,
+          displayName: entry.name || entry.ref,
+          color: entry.color,
+        }));
+
+        // 3. Nameless unreferenced roads
+        if (hasNamelessUnrefRoads) {
+          routeEntries.push({
+            colorKey: UNREFERENCED_COLOR_KEY,
+            displayName: 'Unreferenced / Local Roads',
+            color: refColorMap[UNREFERENCED_COLOR_KEY] || UNREFERENCED_FALLBACK_COLOR,
+          });
+        }
 
         return (
           <div className="risk-routes-panel">
             <h4 className="risk-routes-title">⚠️ Risk-Affected Routes</h4>
-            {routeNames.length > 0 ? (
+            {routeEntries.length > 0 ? (
               <ul className="risk-routes-list">
-                {routeNames.map((name) => (
-                  <li key={name} className="risk-routes-item">{name}</li>
+                {routeEntries.map(({ colorKey, displayName, color }) => (
+                  <li key={colorKey} className="risk-routes-item">
+                    <span
+                      className="route-color-swatch"
+                      style={{ backgroundColor: color }}
+                      aria-hidden="true"
+                    />
+                    {displayName}
+                  </li>
                 ))}
               </ul>
             ) : (

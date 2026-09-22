@@ -13,12 +13,35 @@ L.Icon.Default.mergeOptions({
 
 const KM_PER_DEG_LAT = 111.32;
 
-// Custom pin icon for predefined Sohra demo risk zones
-const createPredefinedMarkerIcon = (name) => {
+// Broad North-Eastern Region (NER) bounding box for view boundary constraints
+export const NER_BOUNDS = [
+  [21.0, 88.0], // South-West coordinate
+  [30.0, 98.5], // North-East coordinate
+];
+
+// Reusable mapping from risk level to theme colors
+export const getRiskColor = (risk) => {
+  switch (risk?.toLowerCase()) {
+    case 'low':
+      return { fill: '#10b981', border: '#059669' };
+    case 'moderate':
+      return { fill: '#eab308', border: '#ca8a04' };
+    case 'high':
+      return { fill: '#f97316', border: '#ea580c' };
+    case 'critical':
+      return { fill: '#ef4444', border: '#dc2626' };
+    default:
+      return null;
+  }
+};
+
+// Custom pin icon for predefined Sohra demo risk zones with risk-based color
+const createPredefinedMarkerIcon = (name, risk) => {
+  const riskClass = (risk || 'low').toLowerCase();
   return L.divIcon({
     className: 'custom-sohra-marker-container',
     html: `
-      <div class="sohra-marker-pin">
+      <div class="sohra-marker-pin risk-${riskClass}">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" stroke="none">
           <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
         </svg>
@@ -39,6 +62,8 @@ export default function MapComponent({
   selectedRegionId,
   onSelectRegion,
   riskyRoadsGeoJSON,   // GeoJSON FeatureCollection | null
+  regionPredictions = {},
+  refColorMap = {},    // ref→color map built in App.jsx
 }) {
   const mapContainerRef = useRef(null);
   const mapInstanceRef = useRef(null);
@@ -68,11 +93,14 @@ export default function MapComponent({
   useEffect(() => {
     if (!mapContainerRef.current || mapInstanceRef.current) return;
 
-    // Default center at Sohra (Cherrapunji), Meghalaya
+    // Default center at Sohra (Cherrapunji), Meghalaya with regional NER boundaries
     const initialCenter = [25.2702, 91.7323];
     const map = L.map(mapContainerRef.current, {
       center: initialCenter,
       zoom: 13,
+      minZoom: 7,
+      maxBounds: NER_BOUNDS,
+      maxBoundsViscosity: 1.0,
       zoomControl: true,
     });
 
@@ -94,11 +122,11 @@ export default function MapComponent({
     predefinedMarkersLayerGroupRef.current = predefinedMarkersLayerGroup;
     mapInstanceRef.current = map;
 
-    // Render predefined Sohra demo risk zone markers
+    // Render predefined Sohra demo risk zone markers with risk-based styling
     PREDEFINED_LOCATIONS.forEach((loc) => {
       const marker = L.marker(loc.coordinates, {
-        icon: createPredefinedMarkerIcon(loc.name),
-        title: `${loc.name} - Sohra, Meghalaya`,
+        icon: createPredefinedMarkerIcon(loc.name, loc.demoProfile.risk),
+        title: `${loc.name} - Sohra, Meghalaya (${loc.demoProfile.risk} Risk)`,
       });
 
       const popupContent = `
@@ -223,7 +251,7 @@ export default function MapComponent({
     };
   }, [onGridCreated]);
 
-  // Render / update grid regions layer whenever gridRegions or selectedRegionId changes
+  // Render / update grid regions layer whenever gridRegions, selectedRegionId, or regionPredictions changes
   useEffect(() => {
     const layerGroup = gridLayerGroupRef.current;
     if (!layerGroup || !mapInstanceRef.current) return;
@@ -234,13 +262,41 @@ export default function MapComponent({
 
     gridRegions.forEach((region) => {
       const isSelected = selectedRegionId === region.id;
+      const prediction = regionPredictions?.[region.id];
+      const riskColor = prediction ? getRiskColor(prediction.risk) : null;
+
+      let borderColor = '#38bdf8';
+      let borderWeight = 2;
+      let dashArray = '4, 4';
+      let fillColor = '#0284c7';
+      let fillOpacity = 0.2;
+
+      if (riskColor) {
+        borderColor = riskColor.border;
+        dashArray = null;
+        fillColor = riskColor.fill;
+        fillOpacity = 0.45;
+      }
+
+      if (isSelected) {
+        borderColor = '#fbbf24'; // Vivid selection gold
+        borderWeight = 4;
+        dashArray = null;
+        if (!riskColor) {
+          fillColor = '#f59e0b';
+          fillOpacity = 0.4;
+        } else {
+          // Keep the evaluated risk fill color visible while highlighting with a stronger opacity
+          fillOpacity = 0.65;
+        }
+      }
 
       const polygon = L.polygon(region.polygonCoords, {
-        color: isSelected ? '#f59e0b' : '#38bdf8',
-        weight: isSelected ? 3.5 : 2,
-        dashArray: isSelected ? null : '4, 4',
-        fillColor: isSelected ? '#f59e0b' : '#0284c7',
-        fillOpacity: isSelected ? 0.45 : 0.2,
+        color: borderColor,
+        weight: borderWeight,
+        dashArray: dashArray,
+        fillColor: fillColor,
+        fillOpacity: fillOpacity,
       });
 
       // Permanent short label (R1–R9) on the map
@@ -257,9 +313,9 @@ export default function MapComponent({
 
       polygon.addTo(layerGroup);
     });
-  }, [gridRegions, selectedRegionId, onSelectRegion]);
+  }, [gridRegions, selectedRegionId, regionPredictions, onSelectRegion]);
 
-  // Render risky roads overlay whenever riskyRoadsGeoJSON changes
+  // Render risky roads overlay whenever riskyRoadsGeoJSON or refColorMap changes
   useEffect(() => {
     const roadsLayerGroup = roadsLayerGroupRef.current;
     if (!roadsLayerGroup) return;
@@ -268,23 +324,43 @@ export default function MapComponent({
 
     if (!riskyRoadsGeoJSON || riskyRoadsGeoJSON.features?.length === 0) return;
 
+    const getRoadColorKey = (properties) => {
+      const props = properties || {};
+      const trimmedRef = props.ref ? String(props.ref).trim() : '';
+      const trimmedName = props.name ? String(props.name).trim() : '';
+      if (trimmedRef) return `ref:${trimmedRef}`;
+      if (trimmedName) return `name:${trimmedName}`;
+      return 'unreferenced';
+    };
+
     L.geoJSON(riskyRoadsGeoJSON, {
-      style: () => ({
-        color: '#ef4444',
-        weight: 5,
-        opacity: 0.9,
-        lineCap: 'round',
-        lineJoin: 'round',
-      }),
+      style: (feature) => {
+        const props = feature.properties || {};
+        const colorKey = getRoadColorKey(props);
+        const color = refColorMap[colorKey] || '#94a3b8';
+        return {
+          color,
+          weight: 5,
+          opacity: 0.9,
+          lineCap: 'round',
+          lineJoin: 'round',
+        };
+      },
       onEachFeature: (feature, layer) => {
-        const { highway, name } = feature.properties || {};
-        const label = name
-          ? `⚠️ ${name} (${highway})`
-          : `⚠️ ${highway || 'Road'} — High/Critical Risk Zone`;
-        layer.bindPopup(label);
+        const { highway, name, ref } = feature.properties || {};
+        const trimmedName = name ? String(name).trim() : '';
+        const trimmedRef = ref ? String(ref).trim() : '';
+        // Popup display: prefer name, then ref, then highway type / 'Local road'
+        const label = trimmedName
+          ? trimmedName
+          : trimmedRef
+          ? trimmedRef
+          : (highway && highway !== 'unknown' ? `${highway} road` : 'Local road');
+        layer.bindPopup(`⚠️ ${label}`);
       },
     }).addTo(roadsLayerGroup);
-  }, [riskyRoadsGeoJSON]);
+  }, [riskyRoadsGeoJSON, refColorMap]);
 
   return <div ref={mapContainerRef} className="map-view-container" id="map" />;
 }
+
