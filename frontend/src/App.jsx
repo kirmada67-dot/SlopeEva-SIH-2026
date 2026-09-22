@@ -1,57 +1,124 @@
 import React, { useState, useCallback } from 'react';
 import MapComponent from './components/MapComponent.jsx';
-import CellInputPanel from './components/CellInputPanel.jsx';
+import RegionInputPanel from './components/RegionInputPanel.jsx';
 import { DEFAULT_FEATURE_MEDIANS } from './constants/featureDefaults';
+import { predictLandslide } from './services/api';
 import './App.css';
 
 function App() {
   const [isGridMode, setIsGridMode] = useState(false);
-  const [gridCells, setGridCells] = useState([]);
-  const [selectedCellId, setSelectedCellId] = useState(null);
-  // Store input features independently for each cell: { [cellId]: { ...features } }
-  const [cellInputs, setCellInputs] = useState({});
+  const [gridRegions, setGridRegions] = useState([]);
+  const [selectedRegionId, setSelectedRegionId] = useState(null);
+
+  // Store input features independently for each region: { [regionId]: { ...features } }
+  const [regionInputs, setRegionInputs] = useState({});
+
+  // Store prediction results independently for each region: { [regionId]: { probability, risk } }
+  const [regionPredictions, setRegionPredictions] = useState({});
+
+  // Modal & API State
+  const [showRemoveModal, setShowRemoveModal] = useState(false);
+  const [isPredicting, setIsPredicting] = useState(false);
+  const [predictionError, setPredictionError] = useState(null);
 
   const handleToggleGridMode = () => {
     setIsGridMode((prev) => !prev);
   };
 
-  const handleGridCreated = useCallback((cells) => {
-    setGridCells(cells);
+  const handleGridCreated = useCallback((regions) => {
+    setGridRegions(regions);
     setIsGridMode(false); // Automatically disable grid creation mode after creation
-    setSelectedCellId(null);
+    setSelectedRegionId(null);
   }, []);
 
-  const handleSelectCell = useCallback((cellId) => {
-    setSelectedCellId((prev) => {
-      const nextCellId = prev === cellId ? null : cellId;
-      // If selecting a new cell that doesn't have initialized inputs yet, initialize it with medians
-      if (nextCellId) {
-        setCellInputs((currentInputs) => {
-          if (!currentInputs[nextCellId]) {
+  const handleSelectRegion = useCallback((regionId) => {
+    setSelectedRegionId((prev) => {
+      const nextRegionId = prev === regionId ? null : regionId;
+      // If selecting a new region that doesn't have initialized inputs yet, initialize it with medians
+      if (nextRegionId) {
+        setRegionInputs((currentInputs) => {
+          if (!currentInputs[nextRegionId]) {
             return {
               ...currentInputs,
-              [nextCellId]: { ...DEFAULT_FEATURE_MEDIANS },
+              [nextRegionId]: { ...DEFAULT_FEATURE_MEDIANS },
             };
           }
           return currentInputs;
         });
       }
-      return nextCellId;
+      return nextRegionId;
     });
+    setPredictionError(null);
   }, []);
 
-  const handleFeatureChange = useCallback((cellId, key, value) => {
-    setCellInputs((prev) => {
-      const currentCellValues = prev[cellId] || { ...DEFAULT_FEATURE_MEDIANS };
+  const handleFeatureChange = useCallback((regionId, key, value) => {
+    setRegionInputs((prev) => {
+      const currentValues = prev[regionId] || { ...DEFAULT_FEATURE_MEDIANS };
       return {
         ...prev,
-        [cellId]: {
-          ...currentCellValues,
+        [regionId]: {
+          ...currentValues,
           [key]: value,
         },
       };
     });
+
+    // Invalidate / clear previous prediction for this region if an input is edited
+    setRegionPredictions((prev) => {
+      if (prev[regionId]) {
+        const updated = { ...prev };
+        delete updated[regionId];
+        return updated;
+      }
+      return prev;
+    });
+
+    setPredictionError(null);
   }, []);
+
+  const handlePredict = async (regionId) => {
+    if (!regionId) return;
+
+    setIsPredicting(true);
+    setPredictionError(null);
+
+    try {
+      const currentValues = regionInputs[regionId] || DEFAULT_FEATURE_MEDIANS;
+      const response = await predictLandslide(currentValues);
+
+      setRegionPredictions((prev) => ({
+        ...prev,
+        [regionId]: response,
+      }));
+    } catch (err) {
+      setPredictionError(err.message || 'Failed to predict landslide risk.');
+    } finally {
+      setIsPredicting(false);
+    }
+  };
+
+  // Remove Grid Modal Handlers
+  const handleOpenRemoveModal = () => {
+    if (gridRegions.length > 0) {
+      setShowRemoveModal(true);
+    }
+  };
+
+  const handleCancelRemove = () => {
+    setShowRemoveModal(false);
+  };
+
+  const handleConfirmRemove = () => {
+    setGridRegions([]);
+    setSelectedRegionId(null);
+    setRegionInputs({});
+    setRegionPredictions({});
+    setIsGridMode(false);
+    setShowRemoveModal(false);
+    setPredictionError(null);
+  };
+
+  const hasGrid = gridRegions.length > 0;
 
   return (
     <div className="app-container">
@@ -60,32 +127,44 @@ function App() {
           <h1>Slope-EVA</h1>
           <p>AI-Powered Landslide Risk Evaluation Platform</p>
         </div>
-        {selectedCellId && (
-          <div className="selected-cell-badge">
-            Selected: <strong>{selectedCellId}</strong>
+        {selectedRegionId && (
+          <div className="selected-region-badge">
+            Selected: <strong>{selectedRegionId}</strong>
           </div>
         )}
       </header>
 
       {/* Control panel directly above the map */}
       <section className="controls-panel">
-        <button
-          className={`control-btn ${isGridMode ? 'active' : ''}`}
-          type="button"
-          onClick={handleToggleGridMode}
-          id="create-grid-btn"
-        >
-          {isGridMode ? 'Cancel Grid Mode' : 'Create Grid'}
-        </button>
+        <div className="grid-action-buttons">
+          <button
+            className={`control-btn ${isGridMode ? 'active' : ''}`}
+            type="button"
+            onClick={handleToggleGridMode}
+            id="create-grid-btn"
+          >
+            {isGridMode ? 'Cancel Grid Mode' : 'Create Grid'}
+          </button>
+
+          <button
+            className="control-btn btn-danger"
+            type="button"
+            onClick={handleOpenRemoveModal}
+            disabled={!hasGrid}
+            id="remove-grid-btn"
+          >
+            Remove Grid
+          </button>
+        </div>
 
         <div className="control-status">
           {isGridMode ? (
             <span className="status-text active">
-              🎯 <strong>Grid Mode Active:</strong> Click anywhere on the map to set the center of the 3x3 grid (~1 km² cells).
+              🎯 <strong>Grid Mode Active:</strong> Click anywhere on the map to set the center of the 3x3 grid (~1 km² regions).
             </span>
-          ) : gridCells.length > 0 ? (
+          ) : hasGrid ? (
             <span className="status-text ready">
-              ✓ 3x3 Grid created ({gridCells.length} cells). Click any cell to select it.
+              ✓ 3x3 Grid active ({gridRegions.length} regions). Click any region (R1–R9) to view details and evaluate risk.
             </span>
           ) : (
             <span className="status-text idle">
@@ -95,24 +174,57 @@ function App() {
         </div>
       </section>
 
-      {/* Main Workspace: Left Map, Right Cell Input Panel */}
+      {/* Main Workspace: Left Map, Right Region Input Panel */}
       <div className="workspace-layout">
         <main className="map-section">
           <MapComponent
             isGridMode={isGridMode}
             onGridCreated={handleGridCreated}
-            gridCells={gridCells}
-            selectedCellId={selectedCellId}
-            onSelectCell={handleSelectCell}
+            gridRegions={gridRegions}
+            selectedRegionId={selectedRegionId}
+            onSelectRegion={handleSelectRegion}
           />
         </main>
 
-        <CellInputPanel
-          selectedCellId={selectedCellId}
-          cellValues={selectedCellId ? cellInputs[selectedCellId] : null}
+        <RegionInputPanel
+          selectedRegionId={selectedRegionId}
+          regionValues={selectedRegionId ? regionInputs[selectedRegionId] : null}
+          prediction={selectedRegionId ? regionPredictions[selectedRegionId] : null}
+          isLoading={isPredicting}
+          errorMessage={predictionError}
           onFeatureChange={handleFeatureChange}
+          onPredict={handlePredict}
         />
       </div>
+
+      {/* Remove Grid Confirmation Modal */}
+      {showRemoveModal && (
+        <div className="modal-backdrop" role="dialog" aria-modal="true">
+          <div className="modal-card">
+            <div className="modal-icon">⚠️</div>
+            <h3>Remove current grid?</h3>
+            <p>This will remove all 9 regions and their entered data.</p>
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="modal-btn btn-secondary"
+                onClick={handleCancelRemove}
+                id="modal-cancel-btn"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="modal-btn btn-danger"
+                onClick={handleConfirmRemove}
+                id="modal-confirm-remove-btn"
+              >
+                Remove
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

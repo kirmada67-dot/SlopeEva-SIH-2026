@@ -15,9 +15,9 @@ const KM_PER_DEG_LAT = 111.32;
 export default function MapComponent({
   isGridMode,
   onGridCreated,
-  gridCells,
-  selectedCellId,
-  onSelectCell,
+  gridRegions,
+  selectedRegionId,
+  onSelectRegion,
 }) {
   const mapContainerRef = useRef(null);
   const mapInstanceRef = useRef(null);
@@ -68,8 +68,8 @@ export default function MapComponent({
       const deltaLat = 1.0 / KM_PER_DEG_LAT;
       const deltaLng = 1.0 / (KM_PER_DEG_LAT * Math.cos((lat * Math.PI) / 180));
 
-      const cells = [];
-      let cellCount = 1;
+      const regions = [];
+      let regionCount = 1;
       const rowOffsets = [1, 0, -1]; // North to South (Row 1, Row 2, Row 3)
       const colOffsets = [-1, 0, 1]; // West to East (Col 1, Col 2, Col 3)
 
@@ -87,18 +87,19 @@ export default function MapComponent({
             [south, west],
           ];
 
-          cells.push({
-            id: `Cell ${cellCount}`,
-            index: cellCount,
+          regions.push({
+            id: `Region ${regionCount}`,
+            shortLabel: `R${regionCount}`,
+            index: regionCount,
             polygonCoords,
             center: [lat + r * deltaLat, lng + c * deltaLng],
           });
 
-          cellCount++;
+          regionCount++;
         }
       }
 
-      onGridCreated(cells);
+      onGridCreated(regions);
     });
 
     return () => {
@@ -107,19 +108,19 @@ export default function MapComponent({
     };
   }, [onGridCreated]);
 
-  // Render / update grid cells layer whenever gridCells or selectedCellId changes
+  // Render / update grid regions layer whenever gridRegions or selectedRegionId changes
   useEffect(() => {
     const layerGroup = gridLayerGroupRef.current;
     if (!layerGroup || !mapInstanceRef.current) return;
 
     layerGroup.clearLayers();
 
-    if (!gridCells || gridCells.length === 0) return;
+    if (!gridRegions || gridRegions.length === 0) return;
 
-    gridCells.forEach((cell) => {
-      const isSelected = selectedCellId === cell.id;
+    gridRegions.forEach((region) => {
+      const isSelected = selectedRegionId === region.id;
 
-      const polygon = L.polygon(cell.polygonCoords, {
+      const polygon = L.polygon(region.polygonCoords, {
         color: isSelected ? '#f59e0b' : '#38bdf8',
         weight: isSelected ? 3.5 : 2,
         dashArray: isSelected ? null : '4, 4',
@@ -127,21 +128,21 @@ export default function MapComponent({
         fillOpacity: isSelected ? 0.45 : 0.2,
       });
 
-      // Permanent badge/label displaying the Cell ID
-      polygon.bindTooltip(cell.id, {
+      // Permanent short label (R1–R9) displaying on the map
+      polygon.bindTooltip(region.shortLabel, {
         permanent: true,
         direction: 'center',
-        className: isSelected ? 'grid-cell-tooltip-selected' : 'grid-cell-tooltip',
+        className: isSelected ? 'grid-region-tooltip-selected' : 'grid-region-tooltip',
       });
 
       polygon.on('click', (e) => {
         L.DomEvent.stopPropagation(e);
-        onSelectCell(cell.id);
+        onSelectRegion(region.id);
       });
 
       polygon.addTo(layerGroup);
     });
-  }, [gridCells, selectedCellId, onSelectCell]);
+  }, [gridRegions, selectedRegionId, onSelectRegion]);
 
   return <div ref={mapContainerRef} className="map-view-container" id="map" />;
 }
