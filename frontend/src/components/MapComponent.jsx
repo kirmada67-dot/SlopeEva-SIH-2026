@@ -13,22 +13,21 @@ L.Icon.Default.mergeOptions({
 
 const KM_PER_DEG_LAT = 111.32;
 
-// Custom pin icon for predefined demo locations
+// Custom pin icon for predefined Sohra demo risk zones
 const createPredefinedMarkerIcon = (name) => {
   return L.divIcon({
-    className: 'custom-ner-marker-container',
+    className: 'custom-sohra-marker-container',
     html: `
-      <div class="ner-marker-pin">
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-          <circle cx="12" cy="10" r="3"></circle>
+      <div class="sohra-marker-pin">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" stroke="none">
+          <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
         </svg>
       </div>
-      <div class="ner-marker-label">${name}</div>
+      <div class="sohra-marker-label">${name}</div>
     `,
-    iconSize: [120, 36],
-    iconAnchor: [60, 32],
-    popupAnchor: [0, -32],
+    iconSize: [140, 48],
+    iconAnchor: [70, 28],
+    popupAnchor: [0, -28],
   });
 };
 
@@ -69,11 +68,11 @@ export default function MapComponent({
   useEffect(() => {
     if (!mapContainerRef.current || mapInstanceRef.current) return;
 
-    // Default center at Mawsynram, Meghalaya (North-Eastern Region)
-    const initialCenter = [25.2975, 91.5826];
+    // Default center at Sohra (Cherrapunji), Meghalaya
+    const initialCenter = [25.2702, 91.7323];
     const map = L.map(mapContainerRef.current, {
       center: initialCenter,
-      zoom: 10,
+      zoom: 13,
       zoomControl: true,
     });
 
@@ -95,28 +94,28 @@ export default function MapComponent({
     predefinedMarkersLayerGroupRef.current = predefinedMarkersLayerGroup;
     mapInstanceRef.current = map;
 
-    // Render predefined NER demo markers
+    // Render predefined Sohra demo risk zone markers
     PREDEFINED_LOCATIONS.forEach((loc) => {
       const marker = L.marker(loc.coordinates, {
         icon: createPredefinedMarkerIcon(loc.name),
-        title: `${loc.name}, ${loc.state}`,
+        title: `${loc.name} - Sohra, Meghalaya`,
       });
 
       const popupContent = `
         <div class="predefined-popup-card">
           <div class="popup-title-row">
             <h4 class="popup-place-name">${loc.name}</h4>
-            <span class="popup-state-name">${loc.state}</span>
+            <span class="popup-state-name">Sohra, Meghalaya</span>
           </div>
           <div class="popup-badge-tag">Demo Risk Profile</div>
           
           <div class="popup-risk-strip risk-${loc.demoProfile.risk.toLowerCase()}">
             <div class="popup-risk-item">
-              <span class="label">Risk</span>
+              <span class="label">Risk:</span>
               <span class="value">${loc.demoProfile.risk}</span>
             </div>
             <div class="popup-risk-item">
-              <span class="label">Probability</span>
+              <span class="label">Probability:</span>
               <span class="value">${loc.demoProfile.probability}</span>
             </div>
           </div>
@@ -147,7 +146,7 @@ export default function MapComponent({
       `;
 
       marker.bindPopup(popupContent, {
-        className: 'custom-ner-popup',
+        className: 'custom-sohra-popup',
         maxWidth: 280,
       });
 
