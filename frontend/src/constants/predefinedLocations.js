@@ -81,4 +81,87 @@ export const PREDEFINED_LOCATIONS = [
       rainfall7Day: '670 mm',
     },
   },
+  // ── 5 additional zones for 10-zone public coverage ──────────────────────────
+  // Spatial gradient rule: no two adjacent zones differ by more than one risk
+  // level. These fill the geographic gaps in the Sohra demo area.
+  {
+    id: 'sohra-north-plateau-zone',
+    name: 'Sohra North Plateau Zone',
+    state: 'Sohra, Meghalaya',
+    // North of River Valley (Critical) — one step down going north
+    coordinates: [25.2960, 91.7310],
+    demoProfile: {
+      risk: 'High',
+      probability: 0.78,
+      rainfall24h: '295 mm',
+      slope: '41°',
+      rainfall3Day: '650 mm',
+      distanceToWater: '60 m',
+      rainfall7Day: '1220 mm',
+    },
+  },
+  {
+    id: 'sohra-west-escarpment-zone',
+    name: 'Sohra West Escarpment Zone',
+    state: 'Sohra, Meghalaya',
+    // West of Ridge (High) — tapering toward western plateau edge
+    coordinates: [25.2785, 91.7050],
+    demoProfile: {
+      risk: 'Moderate',
+      probability: 0.55,
+      rainfall24h: '185 mm',
+      slope: '29°',
+      rainfall3Day: '390 mm',
+      distanceToWater: '145 m',
+      rainfall7Day: '750 mm',
+    },
+  },
+  {
+    id: 'sohra-central-zone',
+    name: 'Sohra Central Zone',
+    state: 'Sohra, Meghalaya',
+    // Between Plateau (Low) and East Slope (Critical) — bridges the jump
+    coordinates: [25.2700, 91.7430],
+    demoProfile: {
+      risk: 'High',
+      probability: 0.72,
+      rainfall24h: '265 mm',
+      slope: '36°',
+      rainfall3Day: '590 mm',
+      distanceToWater: '80 m',
+      rainfall7Day: '1100 mm',
+    },
+  },
+  {
+    id: 'sohra-southeast-zone',
+    name: 'Sohra Southeast Zone',
+    state: 'Sohra, Meghalaya',
+    // Between South Valley (Moderate) and East Slope (Critical) — gradual step up
+    coordinates: [25.2520, 91.7450],
+    demoProfile: {
+      risk: 'High',
+      probability: 0.81,
+      rainfall24h: '290 mm',
+      slope: '43°',
+      rainfall3Day: '630 mm',
+      distanceToWater: '55 m',
+      rainfall7Day: '1175 mm',
+    },
+  },
+  {
+    id: 'sohra-far-south-zone',
+    name: 'Sohra Far South Zone',
+    state: 'Sohra, Meghalaya',
+    // South of South Valley (Moderate) — consistent southward continuation
+    coordinates: [25.2380, 91.7300],
+    demoProfile: {
+      risk: 'Moderate',
+      probability: 0.52,
+      rainfall24h: '170 mm',
+      slope: '25°',
+      rainfall3Day: '355 mm',
+      distanceToWater: '125 m',
+      rainfall7Day: '690 mm',
+    },
+  },
 ];

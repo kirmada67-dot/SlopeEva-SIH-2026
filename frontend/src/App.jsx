@@ -1,8 +1,11 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import MapComponent from './components/MapComponent.jsx';
 import RegionInputPanel from './components/RegionInputPanel.jsx';
+import HomeScreen from './components/HomeScreen.jsx';
+import PublicDashboard from './components/PublicDashboard.jsx';
 import { DEFAULT_FEATURE_MEDIANS } from './constants/featureDefaults';
 import { predictLandslide, fetchRiskyRoads } from './services/api';
+import slopeEvaLogo from './assets/slopeeva-icon-accent.png';
 import './App.css';
 
 // Grid size options: dimensions × dimensions of 1 km² regions
@@ -71,8 +74,12 @@ function buildRoadColorMap(features) {
 }
 
 function App() {
+  // ── View routing: 'home' | 'public' | 'officials' ───────────────────────
+  const [view, setView] = useState('home');
+
+  // ── Officials dashboard state (unchanged) ────────────────────────────────
   const [isGridMode, setIsGridMode] = useState(false);
-  const [gridSize, setGridSize] = useState(3); // default 3×3
+  const [gridSize, setGridSize] = useState(1); // default 1×1
   const [gridRegions, setGridRegions] = useState([]);
   const [selectedRegionId, setSelectedRegionId] = useState(null);
 
@@ -242,18 +249,46 @@ function App() {
     setRoadsError(null);
   };
 
+  // ── View rendering ────────────────────────────────────────────────────────
+
+  if (view === 'home') {
+    return <HomeScreen onNavigate={setView} />;
+  }
+
+  if (view === 'public') {
+    return <PublicDashboard onReturnHome={() => setView('home')} />;
+  }
+
+  // view === 'officials' — the entire existing Officials dashboard, preserved exactly.
   return (
     <div className="app-container">
       <header className="app-header">
-        <div>
-          <h1>Slope-EVA</h1>
-          <p>AI-Powered Landslide Risk Evaluation Platform</p>
-        </div>
-        {selectedRegionId && (
-          <div className="selected-region-badge">
-            Selected: <strong>{selectedRegionId}</strong>
+        <div className="app-header-brand">
+          <img
+            src={slopeEvaLogo}
+            alt="SlopeEva Logo"
+            className="app-header-logo"
+          />
+          <div>
+            <h1>SlopeEva</h1>
+            <p>AI-Powered Landslide Risk Evaluation Platform — Officials Dashboard</p>
           </div>
-        )}
+        </div>
+        <div className="app-header-right">
+          {selectedRegionId && (
+            <div className="selected-region-badge">
+              Selected: <strong>{selectedRegionId}</strong>
+            </div>
+          )}
+          <button
+            className="return-home-btn"
+            type="button"
+            onClick={() => setView('home')}
+            id="officials-return-home-btn"
+          >
+            ← Return Home
+          </button>
+        </div>
       </header>
 
       {/* Control panel directly above the map */}

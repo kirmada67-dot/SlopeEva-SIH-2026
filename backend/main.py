@@ -37,7 +37,7 @@ ROAD_TAGS = (
     "unclassified|residential|service|track|path|footway"
 )
 
-app = FastAPI(title="Slope-EVA API", version="1.0.0")
+app = FastAPI(title="SlopeEva API", version="1.0.0")
 
 # CORS middleware for local frontend development
 app.add_middleware(
