@@ -6,7 +6,6 @@ export default function HomeScreen({ onNavigate }) {
     <div className="home-screen">
       {/* Hero Header */}
       <header className="home-hero">
-        <div className="home-hero-glow" aria-hidden="true" />
         <div className="home-logo-wrapper">
           <img
             src={slopeEvaLogo}
