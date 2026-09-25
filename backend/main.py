@@ -51,6 +51,28 @@ app.add_middleware(
 )
 
 
+@app.get("/")
+def root():
+    return {
+        "status": "online",
+        "service": "SlopeEva API",
+        "version": "1.0.0",
+        "message": "SlopeEva Landslide Risk Demonstration API is active.",
+        "documentation": "/docs",
+        "endpoints": {
+            "predict": "POST /predict",
+            "roads": "POST /roads",
+            "health": "GET /health"
+        }
+    }
+
+
+@app.get("/health")
+def health_check():
+    return {"status": "healthy", "service": "SlopeEva API"}
+
+
+
 class LandslideFeatures(BaseModel):
     Rainfall_24h_mm: float
     Rainfall_3Day_mm: float
