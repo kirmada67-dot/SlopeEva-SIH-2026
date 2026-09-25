@@ -16,11 +16,11 @@
 
 For an in-depth analysis of the dataset distributions, feature correlations, and statistical modeling properties, review the full report:
 
-👉 **[Read the Full Exploratory Data Analysis (EDA.md)](./EDA.md)** *(or view [EDA/EDA_Report.md](./EDA/EDA_Report.md))*
+ **[Read the Full Exploratory Data Analysis (EDA.md)](./EDA.md)** *(or view [EDA/EDA_Report.md](./EDA/EDA_Report.md))*
 
 ---
 
-## 🔬 Dataset & Methodology: 
+##  Dataset & Methodology: 
 
 ### 1. Synthetic Data Notice
 SlopeEva is a software demonstration prototype. The machine learning model is trained on a **calibrated synthetic dataset (5,000 observations, 20 geotechnical/meteorological features)**.
@@ -36,7 +36,7 @@ SlopeEva is a software demonstration prototype. The machine learning model is tr
 
 ---
 
-## ✨ Key Platform Features
+##  Key Platform Features
 
 SlopeEva is divided into two tailored portals accessible from an interactive **Home Screen**:
 
@@ -55,7 +55,7 @@ SlopeEva Platform
   - Environmental Conditions: 24h Rainfall, Slope Angle, 3-Day Rainfall, and 7-Day Rainfall.
 - **10 Reference Monitored Zones**: Color-coded map markers for known hotspots (e.g., Nohkalikai Falls, Mawsmai Cave, Eco Park, Dainthlen, Seven Sisters Falls).
 
-### 2. 🛡️ Officials Dashboard (Disaster Management & Analytical Portal)
+### 2.  Officials Dashboard (Disaster Management & Analytical Portal)
 - **Dynamic Spatial Grid Generator**: Configure and place customizable evaluation grids (`1×1`, `2×2`, `3×3` km² blocks) across any sector in the target region.
 - **20-Feature Parameter Studio**: Fine-tune geotechnical, soil composition, and meteorological variables per grid block (e.g., pore water pressure, soil saturation, NDVI, erosion rate).
 - **Batch AI Prediction**: Execute real-time Random Forest inference across all grid blocks simultaneously with color-coded risk overlays.
@@ -67,7 +67,7 @@ SlopeEva Platform
 
 ---
 
-## 🏗️ System Architecture
+##  System Architecture
 
 ```mermaid
 graph TD
@@ -94,7 +94,7 @@ graph TD
 
 ---
 
-## 🚀 Getting Started (Local Development)
+##  Getting Started (Local Development)
 
 ### Prerequisites
 - **Python 3.10+**
@@ -148,7 +148,7 @@ SlopeEva includes a turnkey `render.yaml` blueprint for zero-cost deployment on 
 
 ---
 
-## 📡 API Endpoints Reference
+##  API Endpoints Reference
 
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
@@ -162,7 +162,7 @@ SlopeEva includes a turnkey `render.yaml` blueprint for zero-cost deployment on 
 
 ## 👥 Authors & Acknowledgments
 
-- **Team SlopeEva** — Smart India Hackathon (SIH) 2026
+- **Team GeoSentinels** — Smart India Hackathon (SIH) 2026
 - Reference Region: **Sohra (Cherrapunji), Meghalaya, India**
 - Open-source map data © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors
 
