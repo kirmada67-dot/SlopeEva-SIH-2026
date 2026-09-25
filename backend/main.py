@@ -14,6 +14,8 @@ import requests as http_requests
 import pandas as pd
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from shapely.geometry import shape, box as shapely_box, mapping, LineString
 from shapely.ops import unary_union
@@ -28,7 +30,7 @@ OVERPASS_ENDPOINTS = [
     "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
 ]
 OVERPASS_HEADERS = {
-    "User-Agent": "Slope-EVA-Landslide-Demo/1.0 (contact: contact@slope-eva.internal)",
+    "User-Agent": "SlopeEva-Landslide-Demo/1.0 (contact: contact@slopeeva.internal)",
     "Accept": "application/json",
 }
 # Road types to query from OSM
@@ -226,3 +228,25 @@ def get_risky_roads(payload: RoadsRequest):
         })
 
     return {"type": "FeatureCollection", "features": features}
+
+
+# ── Static Frontend Serving (Optional / Unified deployment) ─────────────────
+DIST_DIR = ROOT_DIR / "frontend" / "dist"
+if DIST_DIR.exists():
+    assets_dir = DIST_DIR / "assets"
+    if assets_dir.exists():
+        app.mount("/assets", StaticFiles(directory=str(assets_dir)), name="assets")
+
+    @app.get("/{full_path:path}")
+    async def serve_spa(full_path: str):
+        # Do not capture API routes
+        if full_path.startswith(("predict", "roads", "health", "docs", "openapi.json")):
+            raise HTTPException(status_code=404, detail="Not found")
+        file_path = DIST_DIR / full_path
+        if full_path and file_path.is_file():
+            return FileResponse(str(file_path))
+        index_file = DIST_DIR / "index.html"
+        if index_file.exists():
+            return FileResponse(str(index_file))
+        raise HTTPException(status_code=404, detail="Frontend build not found")
+
