@@ -12,7 +12,7 @@
 
 ---
 
-## 📑 Exploratory Data Analysis & Synthetic Calibration
+## Exploratory Data Analysis & Synthetic Calibration
 
 For an in-depth analysis of the dataset distributions, feature correlations, and statistical modeling properties, review the full report:
 
@@ -47,7 +47,7 @@ SlopeEva Platform
 └── 3. Officials Dashboard (Spatial Grids, ML Simulation & Road Hazard Analysis)
 ```
 
-### 1. 🌐 Public Dashboard (Citizen & Traveler Portal)
+### 1.  Public Dashboard (Citizen & Traveler Portal)
 - **Interactive Sohra Map**: Bound to the Sohra / Cherrapunji geographical bounds (`25.22°N – 25.32°N`, `91.68°E – 91.78°E`).
 - **One-Click Location Assessment**: Click anywhere on the map to place a target pin. The system calculates the nearest monitored reference zone using the **Haversine formula** and displays:
   - Landslide Probability percentage bar.
@@ -66,20 +66,6 @@ SlopeEva Platform
   - Color-codes road corridors by road name/ref with risk metrics to aid evacuation planning and detour routing.
 
 ---
-
-##  System Architecture
-
-```mermaid
-graph TD
-    A[React 18 + Vite Frontend] -->|REST API / JSON| B[FastAPI Backend Engine]
-    B -->|Feature Vector| C[Random Forest ML Model]
-    C -->|Probability & Risk Tier| B
-    B -->|Overpass QL Query| D[OpenStreetMap Overpass API]
-    D -->|OSM Road Vectors| B
-    B -->|Shapely Geometry Clipping| B
-    B -->|GeoJSON Roads + Predictions| A
-    A -->|Leaflet Canvas| E[Interactive Risk Map & Road Overlay]
-```
 
 ### Technology Stack
 
@@ -132,7 +118,7 @@ npm run dev
 
 ---
 
-## 🌐 Free Cloud Deployment (Render)
+##  Free Cloud Deployment (Render)
 
 SlopeEva includes a turnkey `render.yaml` blueprint for zero-cost deployment on **Render's Free Tier**:
 
@@ -160,7 +146,7 @@ SlopeEva includes a turnkey `render.yaml` blueprint for zero-cost deployment on 
 
 ---
 
-## 👥 Authors & Acknowledgments
+##  Authors & Acknowledgments
 
 - **Team GeoSentinels** — Smart India Hackathon (SIH) 2026
 - Reference Region: **Sohra (Cherrapunji), Meghalaya, India**
@@ -168,5 +154,5 @@ SlopeEva includes a turnkey `render.yaml` blueprint for zero-cost deployment on 
 
 ---
 
-## 📄 License
+##  License
 This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
